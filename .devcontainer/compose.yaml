@@ -1,0 +1,51 @@
+name: try-tenants-devcontainer
+
+services:
+  dev:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    volumes:
+      - ..:/workspaces/try-tenants:cached
+    command: sleep infinity
+    # バックエンドのログ・トレースを otel-dashboard へ送る。未設定の環境では送信しない(backend/Program.cs 参照)。
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-dashboard:18889
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2025-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .devcontainer/.env}
+    # ホストの DB ツールから接続でき、外部ネットワークには公開しない。
+    ports:
+      - "127.0.0.1:${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - SQLCMDPASSWORD="$$MSSQL_SA_PASSWORD" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -C -b -l 5 -Q "SELECT 1" -o /dev/null
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  # 開発用の OpenTelemetry 受信・表示(トレースとログのドリルダウン)。保持はメモリのみで、再起動すると消える。
+  otel-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:13.6.0
+    environment:
+      # 画面はホストのループバックにのみ公開する開発用途のため、起動ごとにブラウザートークンを探す手間を省いて匿名で開けるようにする。
+      # OTLP 受信口もホストへ公開せず compose ネットワーク内だけで使うため、同じく認証なしとする。
+      ASPIRE_DASHBOARD_UNSECURED_ALLOW_ANONYMOUS: "true"
+    # 画面(18888)のみホストのループバックに公開する。OTLP(gRPC 18889)は app から otel-dashboard:18889 で送る。
+    ports:
+      - "127.0.0.1:${OTEL_DASHBOARD_PORT:-18888}:18888"
+
+volumes:
+  sqlserver-data:

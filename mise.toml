@@ -1,0 +1,11 @@
+# Runtime/SDK versions shared by frontend/ and backend/.
+[tools]
+node = "24.21.0"
+dotnet = "10.0.401"
+
+[tasks.dev]
+description = "フロントエンドをビルドしてバックエンドを起動"
+run = [
+    "npm --prefix frontend run build",
+    "dotnet run --project backend --no-launch-profile --urls http://0.0.0.0:5000",
+]

@@ -1,0 +1,14 @@
+{
+	"servers": {
+		// SvelteKit の公式ドキュメントを参照する MCP サーバー。https://svelte.dev/docs/ai/remote-setup
+		"svelte": {
+			"type": "http",
+			"url": "https://mcp.svelte.dev/mcp"
+		},
+		// ASP.NET Core / .NET の公式ドキュメント(Microsoft Learn)を参照する MCP サーバー。https://learn.microsoft.com/training/support/mcp-developer-reference
+		"microsoft-docs": {
+			"type": "http",
+			"url": "https://learn.microsoft.com/api/mcp"
+		}
+	}
+}
