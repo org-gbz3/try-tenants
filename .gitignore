@@ -147,3 +147,19 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+backend/appsettings.Development.json
+# frontend のビルド出力(frontend/vite.config.ts の adapter-static 出力先)
+backend/wwwroot/
+
+# OS junk files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
