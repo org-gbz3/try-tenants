@@ -7,6 +7,10 @@ Docker Compose で mise 入りの開発コンテナと SQL Server を起動し�
 - 開発環境: `debian:bookworm-slim` に Git、curl、SSH クライアント、sudo、展開用ユーティリティと mise を追加。非 root の `vscode` ユーザーで作業します。
 - mise: Dockerfile の `MISE_VERSION` で固定。開発ツールは `mise.toml` で管理し、イメージのビルド時にインストールします。Bash の有効化と shims の PATH 設定により、ターミナルとエディターから利用できます。
 - SQL Server: 2025 Developer Edition。クエリが成功してから開発コンテナを起動します。データは名前付きボリュームに保存します。
+- `backend/` — ASP.NET Core Web API（Controllers ベース、.NET 10）。`wwwroot` に配置された静的ファイルを配信し、API は `/api` 配下。
+- `frontend/` — SvelteKit（`@sveltejs/adapter-static` によるSPAビルド）。ビルド出力は直接 `backend/wwwroot` へ書き出される。
+- `docs/` — 機能ドメイン別のER図と、画面操作とCRUD操作の対応表。現時点の仕様を示す資料で、対応するエンティティ・API・画面を変更するときに更新する。詳細は [docs/README.md](docs/README.md) を参照。
+- `decisions/` — 方針・仕様を検討した経緯（ADR）。現時点の仕様そのものは README.md, `docs/` 側に記載し、`decisions/` にはなぜその決定に至ったかを記録する。詳細は [decisions/README.md](decisions/README.md) を参照。
 
 ## 起動
 
@@ -63,6 +67,16 @@ docker compose -f .devcontainer/compose.yaml exec sqlserver bash -c 'SQLCMDPASSW
 ## よく使うコマンド
 
 ```bash
-# ワンライナー  see: http://localhost:5000/
-npm --prefix frontend run build && dotnet run --project backend --no-launch-profile --urls http://0.0.0.0:5000
+# 確認
+npm --prefix frontend run check
+npm --prefix frontend run test
+dotnet build backend
+dotnet test backend.Tests
+dotnet publish backend -c Release
+
+# マイグレーション適用
+dotnet ef database update --project backend
+
+# 開発サーバ起動用ワンライナー  see: http://localhost:5000/
+mise run dev
 ```
