@@ -1,6 +1,13 @@
-@Backend_HostAddress = http://localhost:5046
+@Backend_HostAddress = http://localhost:5000
 
-GET {{Backend_HostAddress}}/weatherforecast/
+# 匿名でも呼べる API の確認用。更新系の API は CSRF トークンとパスキーの応答が必要なため、画面から操作する。
+GET {{Backend_HostAddress}}/api/auth/csrf
+Accept: application/json
+
+###
+
+# 未認証では 401 を返す。
+GET {{Backend_HostAddress}}/api/auth/me
 Accept: application/json
 
 ###
