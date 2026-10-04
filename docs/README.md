@@ -8,3 +8,4 @@ DBで管理するデータ(エンティティ)のテーブル間関係と、画�
 
 | ファイル | 機能ドメイン | 対象コントローラー |
 | --- | --- | --- |
+| [features/auth.md](features/auth.md) | 認証(パスキー) | AuthController, AdminUsersController |

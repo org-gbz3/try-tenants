@@ -8,7 +8,9 @@ Docker Compose で mise 入りの開発コンテナと SQL Server を起動し�
 - mise: Dockerfile の `MISE_VERSION` で固定。開発ツールは `mise.toml` で管理し、イメージのビルド時にインストールします。Bash の有効化と shims の PATH 設定により、ターミナルとエディターから利用できます。
 - SQL Server: 2025 Developer Edition。クエリが成功してから開発コンテナを起動します。データは名前付きボリュームに保存します。
 - OpenTelemetry ダッシュボード: Aspire Dashboard。バックエンドのトレース・ログ・メトリクスを表示します。保持はメモリのみで、再起動すると消えます。詳細は [OpenTelemetry](#opentelemetry) を参照。
+- Mailpit: 開発用のメール受信。認証の確認メールなどを外部へ送らずに受け取ります。保持はメモリのみです。詳細は [認証（パスキー）](#認証パスキー) を参照。
 - `backend/` — ASP.NET Core Web API（Controllers ベース、.NET 10）。`wwwroot` に配置された静的ファイルを配信し、API は `/api` 配下。
+- `backend.Tests/` — バックエンドの統合テスト（xUnit、SQLite のメモリ DB）。
 - `frontend/` — SvelteKit（`@sveltejs/adapter-static` によるSPAビルド）。ビルド出力は直接 `backend/wwwroot` へ書き出される。SPA 専用のため SSR は無効（`src/routes/+layout.ts`）で、サーバーで実行されるファイル（`*.server.ts`・`+server.ts`・`src/lib/server/`）を置くとビルドが失敗する。
 - `docs/` — 機能ドメイン別のER図と、画面操作とCRUD操作の対応表。現時点の仕様を示す資料で、対応するエンティティ・API・画面を変更するときに更新する。詳細は [docs/README.md](docs/README.md) を参照。
 - `decisions/` — 方針・仕様を検討した経緯（ADR）。現時点の仕様そのものは README.md, `docs/` 側に記載し、`decisions/` にはなぜその決定に至ったかを記録する。詳細は [decisions/README.md](decisions/README.md) を参照。
@@ -21,6 +23,7 @@ SQL Server の公式対応環境は Linux x86-64 です。SQL Server 用に最�
 1. リポジトリのルートで `cp .devcontainer/.env.example .devcontainer/.env` を実行します。
 2. `.devcontainer/.env` の `MSSQL_SA_PASSWORD` を変更します。8 文字以上で、英大文字・英小文字・数字・記号のうち 3 種類以上を含めてください。`.env` は Git 管理対象外です。
 3. VS Code で **Dev Containers: Reopen in Container** を実行します。
+4. コンテナ内のリポジトリ直下で `dotnet tool restore` と `dotnet ef database update --project backend` を実行し、DB を作成します。マイグレーションはアプリ起動時には適用されません。
 
 Compose の `ACCEPT_EULA=Y` は SQL Server のライセンス条項への同意を表します。Developer Edition は開発・テスト用途で使用します。
 
@@ -74,7 +77,31 @@ docker compose -f .devcontainer/compose.yaml exec sqlserver bash -c 'SQLCMDPASSW
 - サービス名は既定で `try-tenants-backend` です。`OTEL_SERVICE_NAME` を設定するとその値を使います。
 - 計装の範囲: ASP.NET Core（受信リクエスト）、HttpClient（送信リクエスト）、SqlClient（SQL Server へのクエリ）、ランタイムメトリクス（`System.Runtime`）。
 - リクエスト本文や SQL パラメーター値は記録しません。URL のクエリ文字列はマスクされます。
+- 実行された SQL は EF Core のログ（`Microsoft.EntityFrameworkCore.Database.Command`）として送信します。クエリごとに出力され量が多いため、Development 環境（`appsettings.Development.json`）でのみ Information とし、それ以外は Warning に抑えています。パラメーター値は `?` で伏せられます（`EnableSensitiveDataLogging` は使いません）。
+- ログレベルは `backend/appsettings.json` と `appsettings.{環境名}.json` で管理し、コードでは指定しません（[decisions/0004](decisions/0004-log-level-configuration.md)）。各設定の意味はファイル内のコメントを参照してください。運用中に一時的に変える場合は `Logging__LogLevel__<カテゴリー>` の環境変数で上書きできます。
 - メトリクスは既定で 60 秒ごとに送信されます。すぐに確認したい場合は `OTEL_METRIC_EXPORT_INTERVAL`（ミリ秒）を短くしてください。
+
+## 認証（パスキー）
+
+認証はパスキーのみです（パスワードは使いません）。方針と経緯は [decisions/0002](decisions/0002-passkey-only-authentication.md)・[decisions/0003](decisions/0003-authorization-model.md)、画面と API の対応は [docs/features/auth.md](docs/features/auth.md) を参照してください。
+
+- 動作確認は `mise run dev` で起動し、`http://localhost:5000` で行います。パスキーは Origin が一致する必要があるため、Vite の開発サーバー（`:5173`）では認証を使えません。LAN の IP アドレスなど `localhost` 以外を http で開いた場合も使えません。
+- 新規登録の確認メールは Mailpit で受け取ります。画面はホストの `http://localhost:8025` で開けます（ポートは `.devcontainer/.env` の `MAILPIT_PORT` で変更）。
+- 最初のシステム管理者は、画面から登録したあとに `dotnet run --project backend -- grant-system-admin <email>` で付与します。付与後はサインインし直してください。
+- パスキーをすべて失った利用者は、システム管理者が `/admin/users` で再設定します。登録済みのパスキーとセッションがすべて無効になり、新しいパスキーを登録するリンクがメールで届きます。実行前に、依頼者が本人であることを確認してください。
+
+開発コンテナでは compose.yaml で次の設定を環境変数として渡しています。本番では同じ設定を環境変数またはシークレットで指定してください（`App:PublicBaseUrl` が無いと起動時にエラーになります）。
+
+| 設定 | 内容 |
+| --- | --- |
+| `ConnectionStrings__Default` | SQL Server の接続文字列。開発では `.env` の `MSSQL_SA_PASSWORD` から組み立てます（パスワードに `;` を含めないでください）。 |
+| `App__PublicBaseUrl` | メール内のリンクの起点となる URL。 |
+| `Passkey__ServerDomain` | パスキーの RP ID（配信先のドメイン）。登録後に変えると既存のパスキーが使えなくなります。 |
+| `Smtp__Host` / `Smtp__Port` / `Smtp__From` | メール送信先の SMTP サーバーと差出人。認証が必要な場合は `Smtp__UserName` / `Smtp__Password` も指定します。 |
+
+## frontend/DESIGN.md
+
+- [pre-design-md](https://pre-design-md.dev/)
 
 ## よく使うコマンド
 
@@ -86,8 +113,14 @@ dotnet build backend
 dotnet test backend.Tests
 dotnet publish backend -c Release
 
-# マイグレーション適用
+# マイグレーション適用（dotnet-ef はローカルツール。初回は dotnet tool restore）
 dotnet ef database update --project backend
+
+# マイグレーション追加
+dotnet ef migrations add <Name> --project backend --output-dir Data/Migrations
+
+# システム管理者の付与
+dotnet run --project backend -- grant-system-admin <email>
 
 # 開発サーバ起動用ワンライナー  see: http://localhost:5000/
 mise run dev

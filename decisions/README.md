@@ -46,3 +46,6 @@
 | 番号 | タイトル | 状態 |
 | --- | --- | --- |
 | [0001](0001-adopt-opentelemetry.md) | バックエンドへの OpenTelemetry 導入 | 採用 |
+| [0002](0002-passkey-only-authentication.md) | パスキーのみによる認証 | 採用 |
+| [0003](0003-authorization-model.md) | 認可の基本方針とテナント所属モデル | 採用 |
+| [0004](0004-log-level-configuration.md) | ログレベルの設定場所 | 採用 |

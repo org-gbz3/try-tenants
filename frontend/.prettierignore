@@ -7,3 +7,6 @@ bun.lockb
 
 # Miscellaneous
 /static/
+
+# 外部ツール(pre-design-md)の生成物。再生成時の差分を見やすくするため整形しない。
+/DESIGN.md

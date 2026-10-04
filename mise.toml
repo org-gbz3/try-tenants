@@ -5,6 +5,8 @@ dotnet = "10.0.401"
 
 [tasks.dev]
 description = "フロントエンドをビルドしてバックエンドを起動"
+# --no-launch-profile では環境が Production になり、Secure 属性の認証 Cookie が http で送られずサインインできないため明示する。
+env = { ASPNETCORE_ENVIRONMENT = "Development" }
 run = [
     "npm --prefix frontend run build",
     "dotnet run --project backend --no-launch-profile --urls http://0.0.0.0:5000",

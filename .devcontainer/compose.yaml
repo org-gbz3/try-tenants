@@ -12,9 +12,20 @@ services:
     environment:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-dashboard:18889
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      # 開発用 SQL Server への接続。パスワードは .env の値を使い、Git 管理対象のファイルには書かない。
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=TryTenants;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True"
+      # メールのリンクとパスキーの RP ID。ブラウザーで開く URL(ポート転送先の localhost:5000)に合わせる。
+      App__PublicBaseUrl: http://localhost:5000
+      Passkey__ServerDomain: localhost
+      # 開発中のメールは外部へ送らず mailpit で受け取る。
+      Smtp__Host: mailpit
+      Smtp__Port: "1025"
+      Smtp__From: no-reply@try-tenants.local
     depends_on:
       sqlserver:
         condition: service_healthy
+      mailpit:
+        condition: service_started
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2025-latest
@@ -46,6 +57,13 @@ services:
     # 画面(18888)のみホストのループバックに公開する。OTLP(gRPC 18889)は app から otel-dashboard:18889 で送る。
     ports:
       - "127.0.0.1:${OTEL_DASHBOARD_PORT:-18888}:18888"
+
+  # 開発用のメール受信・表示。保持はメモリのみで、再起動すると消える。
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    # 画面(8025)のみホストのループバックに公開する。SMTP(1025)は app から mailpit:1025 で送る。
+    ports:
+      - "127.0.0.1:${MAILPIT_PORT:-8025}:8025"
 
 volumes:
   sqlserver-data:

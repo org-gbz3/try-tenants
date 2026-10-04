@@ -2,7 +2,7 @@
   "name": "try-tenants",
   "dockerComposeFile": "compose.yaml",
   "service": "dev",
-  "runServices": ["dev", "sqlserver", "otel-dashboard"],
+  "runServices": ["dev", "sqlserver", "otel-dashboard", "mailpit"],
   "workspaceFolder": "/workspaces/try-tenants",
   "remoteUser": "vscode",
   "forwardPorts": [5173, 5000],
