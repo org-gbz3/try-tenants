@@ -7,8 +7,9 @@ Docker Compose で mise 入りの開発コンテナと SQL Server を起動し�
 - 開発環境: `debian:bookworm-slim` に Git、curl、SSH クライアント、sudo、展開用ユーティリティと mise を追加。非 root の `vscode` ユーザーで作業します。
 - mise: Dockerfile の `MISE_VERSION` で固定。開発ツールは `mise.toml` で管理し、イメージのビルド時にインストールします。Bash の有効化と shims の PATH 設定により、ターミナルとエディターから利用できます。
 - SQL Server: 2025 Developer Edition。クエリが成功してから開発コンテナを起動します。データは名前付きボリュームに保存します。
+- OpenTelemetry ダッシュボード: Aspire Dashboard。バックエンドのトレース・ログ・メトリクスを表示します。保持はメモリのみで、再起動すると消えます。詳細は [OpenTelemetry](#opentelemetry) を参照。
 - `backend/` — ASP.NET Core Web API（Controllers ベース、.NET 10）。`wwwroot` に配置された静的ファイルを配信し、API は `/api` 配下。
-- `frontend/` — SvelteKit（`@sveltejs/adapter-static` によるSPAビルド）。ビルド出力は直接 `backend/wwwroot` へ書き出される。
+- `frontend/` — SvelteKit（`@sveltejs/adapter-static` によるSPAビルド）。ビルド出力は直接 `backend/wwwroot` へ書き出される。SPA 専用のため SSR は無効（`src/routes/+layout.ts`）で、サーバーで実行されるファイル（`*.server.ts`・`+server.ts`・`src/lib/server/`）を置くとビルドが失敗する。
 - `docs/` — 機能ドメイン別のER図と、画面操作とCRUD操作の対応表。現時点の仕様を示す資料で、対応するエンティティ・API・画面を変更するときに更新する。詳細は [docs/README.md](docs/README.md) を参照。
 - `decisions/` — 方針・仕様を検討した経緯（ADR）。現時点の仕様そのものは README.md, `docs/` 側に記載し、`decisions/` にはなぜその決定に至ったかを記録する。詳細は [decisions/README.md](decisions/README.md) を参照。
 
@@ -63,6 +64,17 @@ docker compose -f .devcontainer/compose.yaml exec sqlserver bash -c 'SQLCMDPASSW
 既存データがある場合、`.env` の変更だけでは `sa` のパスワードは変更されません。
 
 `2025-latest` は更新されるタグです。SQL Server の厳密な再現性が必要な場合は検証済みの CU タグまたは digest に固定してください。
+
+## OpenTelemetry
+
+バックエンドは OTLP でトレース・ログ・メトリクスを送信します。ダッシュボードの画面はホストの `http://localhost:18888` で開けます（ポートは `.devcontainer/.env` の `OTEL_DASHBOARD_PORT` で変更）。
+
+- 送信先は環境変数 `OTEL_EXPORTER_OTLP_ENDPOINT` で指定します。開発コンテナでは compose.yaml で `http://otel-dashboard:18889`（gRPC）を設定済みです。
+- `OTEL_EXPORTER_OTLP_ENDPOINT` が未設定、または `OTEL_SDK_DISABLED=true` の場合は OpenTelemetry を登録せず、何も送信しません。
+- サービス名は既定で `try-tenants-backend` です。`OTEL_SERVICE_NAME` を設定するとその値を使います。
+- 計装の範囲: ASP.NET Core（受信リクエスト）、HttpClient（送信リクエスト）、SqlClient（SQL Server へのクエリ）、ランタイムメトリクス（`System.Runtime`）。
+- リクエスト本文や SQL パラメーター値は記録しません。URL のクエリ文字列はマスクされます。
+- メトリクスは既定で 60 秒ごとに送信されます。すぐに確認したい場合は `OTEL_METRIC_EXPORT_INTERVAL`（ミリ秒）を短くしてください。
 
 ## よく使うコマンド
 

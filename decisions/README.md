@@ -45,3 +45,4 @@
 
 | 番号 | タイトル | 状態 |
 | --- | --- | --- |
+| [0001](0001-adopt-opentelemetry.md) | バックエンドへの OpenTelemetry 導入 | 採用 |

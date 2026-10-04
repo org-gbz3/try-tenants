@@ -1,6 +1,7 @@
 # プロジェクト方針
 
 - SvelteKit の SPA を ASP.NET Core から配信する構成を維持する。
+- frontend は SPA 専用とし、サーバーで実行されるファイル(`*.server.ts`・`+server.ts`・`hooks.server.ts`・`src/lib/server/`)を作らない。データは /api から取得する。ルートの `+layout.ts` の `ssr = false` を維持する。違反するとビルドが失敗する(`frontend/vite.config.ts` の検査)。
 - API は /api 配下に配置する。
 - 実装とドキュメントを一致させ、構成変更時は README.md も更新する。
 
